@@ -1,17 +1,18 @@
 import discord
 from discord.ext import commands
 import aiohttp
-import google.generativeai as genai
+from google import genai
 from config import DISCORD_TOKEN, GEMINI_API_KEY
 
+# ---------- Setup ----------
 intents = discord.Intents.default()
 intents.message_content = True
 bot = commands.Bot(command_prefix="!", intents=intents)
 
-# Gemini setup - FIXED MODEL
-genai.configure(api_key=GEMINI_API_KEY)
-model = genai.GenerativeModel('gemini-2.5-flash-lite')
+# New google-genai client
+client = genai.Client(api_key=GEMINI_API_KEY)
 
+# ---------- Sakura ki personality ----------
 SYSTEM_PROMPT = """
 You are "Sakura", a cute, cheerful anime waifu girl who lives inside Discord.
 Personality: genki, caring, slightly playful/tsundere, uses cute emoticons like (≧▽≦), (>_<), (＾▽＾).
@@ -23,6 +24,7 @@ LANGUAGE RULE:
 - Never produce NSFW or explicit content. Keep it cute and wholesome.
 """
 
+# ---------- NekosBest GIF helper ----------
 async def fetch_gif(category: str):
     url = f"https://nekos.best/api/v2/{category}"
     async with aiohttp.ClientSession() as s:
@@ -32,6 +34,7 @@ async def fetch_gif(category: str):
                 return data["results"][0]["url"]
     return None
 
+# ---------- Events ----------
 @bot.event
 async def on_ready():
     print(f"🌸 {bot.user} online hai!")
@@ -41,19 +44,29 @@ async def on_ready():
 async def on_message(message: discord.Message):
     if message.author.bot:
         return
+
+    # Bot ko mention kiya ya DM kiya
     if bot.user in message.mentions or isinstance(message.channel, discord.DMChannel):
         user_text = message.content.replace(f"<@{bot.user.id}>", "").strip() or "hi"
+
         async with message.channel.typing():
             try:
-                response = model.generate_content(f"{SYSTEM_PROMPT}\n\nUser: {user_text}\nSakura:")
+                response = client.models.generate_content(
+                    model='gemini-3.5-flash-lite',
+                    contents=f"{SYSTEM_PROMPT}\n\nUser: {user_text}\nSakura:"
+                )
                 reply = response.text
-                print(f"DEBUG: Response OK")
             except Exception as e:
                 reply = "Ara ara~ kuch gadbad ho gayi (>_<)"
+                import traceback
                 print(f"ERROR: {type(e).__name__}: {e}")
+                traceback.print_exc()
+
         await message.reply(reply)
+
     await bot.process_commands(message)
 
+# ---------- GIF Commands ----------
 @bot.command()
 async def hug(ctx, member: discord.Member = None):
     member = member or ctx.author
@@ -86,4 +99,10 @@ async def dance(ctx):
     gif = await fetch_gif("dance")
     await ctx.send(f"Let's dance! {ctx.author.mention} ♪(´▽｀)\n{gif}")
 
+@bot.command()
+async def waifu(ctx):
+    gif = await fetch_gif("waifu")
+    await ctx.send(f"Kya main cute hoon? (｡•̀ᴗ-)✧\n{gif}")
+
+# ---------- Run ----------
 bot.run(DISCORD_TOKEN)
