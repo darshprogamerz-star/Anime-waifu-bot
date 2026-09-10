@@ -8,9 +8,9 @@ intents = discord.Intents.default()
 intents.message_content = True
 bot = commands.Bot(command_prefix="!", intents=intents)
 
-# Gemini setup
+# Gemini setup - FIXED MODEL
 genai.configure(api_key=GEMINI_API_KEY)
-model = genai.GenerativeModel('gemini-1.5-flash')
+model = genai.GenerativeModel('gemini-2.5-flash-lite')
 
 SYSTEM_PROMPT = """
 You are "Sakura", a cute, cheerful anime waifu girl who lives inside Discord.
@@ -23,7 +23,6 @@ LANGUAGE RULE:
 - Never produce NSFW or explicit content. Keep it cute and wholesome.
 """
 
-# NekosBest se GIF fetch (No API key needed!)
 async def fetch_gif(category: str):
     url = f"https://nekos.best/api/v2/{category}"
     async with aiohttp.ClientSession() as s:
@@ -48,13 +47,13 @@ async def on_message(message: discord.Message):
             try:
                 response = model.generate_content(f"{SYSTEM_PROMPT}\n\nUser: {user_text}\nSakura:")
                 reply = response.text
+                print(f"DEBUG: Response OK")
             except Exception as e:
                 reply = "Ara ara~ kuch gadbad ho gayi (>_<)"
-                print(e)
+                print(f"ERROR: {type(e).__name__}: {e}")
         await message.reply(reply)
     await bot.process_commands(message)
 
-# --- GIF Commands (NekosBest se) ---
 @bot.command()
 async def hug(ctx, member: discord.Member = None):
     member = member or ctx.author
